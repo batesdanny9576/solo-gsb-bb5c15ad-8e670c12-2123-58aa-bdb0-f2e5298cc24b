@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const store = require('./store');
 const { validate } = require('./validate');
 const { toMarkdown } = require('./report');
+const { normalizeClosures } = require('./graph');
 
 const router = express.Router();
 
@@ -32,6 +33,14 @@ const validators = {
     if (!ids.has(body.a) || !ids.has(body.b)) return '连接两端必须是已存在的区域';
     if (body.a === body.b) return '连接两端不能是同一区域';
     if (!isNonNegativeInt(body.seconds)) return '通行耗时必须是不小于 0 的整数秒';
+    if (body.closures !== undefined) {
+      if (!Array.isArray(body.closures)) return '封闭时段必须是数组';
+      for (const c of body.closures) {
+        if (!c || !isNonNegativeInt(c.start) || !isNonNegativeInt(c.end) || c.end <= c.start) {
+          return '封闭时段需为 {start, end} 整数秒区间，且结束必须大于开始';
+        }
+      }
+    }
     return null;
   },
   cues(body, data) {
@@ -50,7 +59,7 @@ function sanitize(collection, body) {
     case 'actors':
       return { name: body.name.trim(), role: (body.role || '').trim() };
     case 'edges':
-      return { a: body.a, b: body.b, seconds: body.seconds };
+      return { a: body.a, b: body.b, seconds: body.seconds, closures: normalizeClosures(body.closures) };
     case 'cues':
       return { actorId: body.actorId, areaId: body.areaId, time: body.time, note: (body.note || '').trim() };
     default:

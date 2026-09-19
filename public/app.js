@@ -107,13 +107,57 @@ function renderEdges() {
         <td>${escapeHtml(areaName(e.a))}</td>
         <td>${escapeHtml(areaName(e.b))}</td>
         <td>${e.seconds} 秒</td>
+        <td>${escapeHtml(fmtClosures(e.closures))}</td>
         <td class="col-ops">
           <button class="btn btn-small" data-edit-edge="${e.id}">编辑</button>
           <button class="btn btn-danger" data-del-edge="${e.id}">删除</button>
         </td>
       </tr>`
     )
-    .join('') || '<tr><td colspan="4" class="empty-hint">暂无连接</td></tr>';
+    .join('') || '<tr><td colspan="5" class="empty-hint">暂无连接</td></tr>';
+}
+
+function fmtClosures(closures) {
+  if (!Array.isArray(closures) || closures.length === 0) return '—';
+  return closures.map((c) => `${c.start}–${c.end} 秒`).join('、');
+}
+
+/* ---------- 封闭时段编辑器 ---------- */
+
+function addClosureRow(start = '', end = '') {
+  const row = document.createElement('div');
+  row.className = 'closure-row';
+  row.innerHTML = `
+    <input type="number" class="closure-start" min="0" step="1" placeholder="开始(秒)" />
+    <span class="closure-sep">至</span>
+    <input type="number" class="closure-end" min="0" step="1" placeholder="结束(秒)" />
+    <button type="button" class="btn btn-danger">删除</button>`;
+  row.querySelector('.closure-start').value = start;
+  row.querySelector('.closure-end').value = end;
+  row.querySelector('button').addEventListener('click', () => row.remove());
+  $('closures-list').appendChild(row);
+}
+
+function clearClosureRows() {
+  $('closures-list').innerHTML = '';
+}
+
+/** 读取封闭时段编辑行；非法时返回 { error }，否则返回 { closures } */
+function readClosures() {
+  const rows = Array.from(document.querySelectorAll('#closures-list .closure-row'));
+  const closures = [];
+  for (const row of rows) {
+    const s = row.querySelector('.closure-start').value.trim();
+    const e = row.querySelector('.closure-end').value.trim();
+    if (s === '' || e === '') return { error: '封闭时段的开始与结束秒数都要填写（或删除空行）' };
+    const start = Number(s);
+    const end = Number(e);
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start) {
+      return { error: '封闭时段需为不小于 0 的整数秒，且结束必须大于开始' };
+    }
+    closures.push({ start, end });
+  }
+  return { closures };
 }
 
 function renderActors() {
@@ -155,6 +199,20 @@ function renderCues() {
 
 const STATUS_LABEL = { ok: '✅ 可达', fail: '❌ 超时', unreachable: '⛔ 不可达' };
 
+/** 拼接实际路线 HTML：在等待发生的区域后标注等待时长 */
+function routeHtml(seg) {
+  if (!seg.legs || seg.legs.length === 0) {
+    return seg.path && seg.path.length > 0 ? escapeHtml(seg.path.join(' → ')) : '—';
+  }
+  const parts = [];
+  seg.legs.forEach((leg, i) => {
+    if (i === 0) parts.push(escapeHtml(leg.fromName));
+    if (leg.waitSeconds > 0) parts.push(`<span class="wait-tag">等待 ${leg.waitSeconds} 秒</span>`);
+    parts.push(`→ ${escapeHtml(leg.toName)}`);
+  });
+  return parts.join(' ');
+}
+
 function renderValidation() {
   const v = state.validation;
   if (!v) return;
@@ -183,18 +241,21 @@ function renderValidation() {
       }
       const rows = actor.segments
         .map((seg) => {
+          const waitDetail = seg.waitSeconds > 0
+            ? `<span class="time-detail wait">含等待 ${seg.waitSeconds} 秒 · 预计 ${fmtTime(seg.arrivalTime)} 到达</span>`
+            : '';
           let timeCell;
           if (seg.status === 'unreachable') {
             timeCell = `<span class="time-detail">可用 ${seg.availableSeconds} 秒</span>
                         <span class="time-detail"><strong>两区域间无连通路径</strong></span>`;
           } else if (seg.status === 'fail') {
             timeCell = `<span class="time-detail">所需 <strong>${seg.requiredSeconds} 秒</strong> / 可用 ${seg.availableSeconds} 秒</span>
-                        <span class="time-detail"><strong>缺口 ${-seg.slackSeconds} 秒</strong></span>`;
+                        <span class="time-detail"><strong>缺口 ${-seg.slackSeconds} 秒</strong></span>${waitDetail}`;
           } else {
             timeCell = `<span class="time-detail">所需 ${seg.requiredSeconds} 秒 / 可用 ${seg.availableSeconds} 秒</span>
-                        <span class="time-detail">余量 ${seg.slackSeconds} 秒</span>`;
+                        <span class="time-detail">余量 ${seg.slackSeconds} 秒</span>${waitDetail}`;
           }
-          const route = seg.path.length > 0 ? escapeHtml(seg.path.join(' → ')) : '—';
+          const route = routeHtml(seg);
           return `<tr class="seg-${seg.status}">
             <td>${seg.index}</td>
             <td>${escapeHtml(seg.from.areaName)}<span class="time-detail">${fmtTime(seg.from.time)}${seg.from.note ? ' · ' + escapeHtml(seg.from.note) : ''}</span></td>
@@ -208,7 +269,7 @@ function renderValidation() {
       return `<div class="actor-block">
         <h3>${escapeHtml(actor.actorName)} <span class="cue-count">（${actor.cueCount} 条口令 / ${actor.segments.length} 个区段）</span></h3>
         <table>
-          <thead><tr><th>#</th><th>起点</th><th>终点</th><th>耗时校验</th><th>最短路线</th><th>结论</th></tr></thead>
+          <thead><tr><th>#</th><th>起点</th><th>终点</th><th>耗时校验</th><th>实际路线（含等待）</th><th>结论</th></tr></thead>
           <tbody>${rows}</tbody>
         </table>
       </div>`;
@@ -247,6 +308,7 @@ function clearAreaForm() {
 }
 function clearEdgeForm() {
   $('form-edge').reset();
+  clearClosureRows();
   setEditing('edge-id', 'edge-submit', 'edge-cancel', false, '添加连接', '保存修改');
 }
 function clearActorForm() {
@@ -285,14 +347,26 @@ function bindForms() {
 
   $('form-edge').addEventListener('submit', (e) => {
     e.preventDefault();
+    const c = readClosures();
+    if (c.error) {
+      toast(c.error, true);
+      return;
+    }
     const id = $('edge-id').value;
-    const body = { a: $('edge-a').value, b: $('edge-b').value, seconds: Number($('edge-seconds').value) };
+    const body = {
+      a: $('edge-a').value,
+      b: $('edge-b').value,
+      seconds: Number($('edge-seconds').value),
+      closures: c.closures,
+    };
     mutate(async () => {
       if (id) await api(`/api/edges/${id}`, 'PUT', body);
       else await api('/api/edges', 'POST', body);
       clearEdgeForm();
     }, id ? '连接已更新' : '连接已添加');
   });
+
+  $('btn-add-closure').addEventListener('click', () => addClosureRow());
 
   $('form-actor').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -351,6 +425,8 @@ function bindTableActions() {
       $('edge-a').value = ed.a;
       $('edge-b').value = ed.b;
       $('edge-seconds').value = ed.seconds;
+      clearClosureRows();
+      (ed.closures || []).forEach((cl) => addClosureRow(cl.start, cl.end));
       setEditing('edge-id', 'edge-submit', 'edge-cancel', true, '添加连接', '保存修改');
     } else if (d.delEdge) {
       mutate(() => api(`/api/edges/${d.delEdge}`, 'DELETE'), '连接已删除');

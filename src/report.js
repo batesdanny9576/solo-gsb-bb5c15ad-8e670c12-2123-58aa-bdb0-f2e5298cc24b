@@ -12,6 +12,20 @@ const STATUS_TEXT = {
   unreachable: '⛔ 区域不可达',
 };
 
+/** 拼接动态路线明细：起点（出发时刻）→（等待标注）→ 逐边到达时刻 */
+function routeText(seg) {
+  if (!seg.legs || seg.legs.length === 0) {
+    return seg.path && seg.path.length > 0 ? seg.path.join(' → ') : '—';
+  }
+  const parts = [];
+  seg.legs.forEach((leg, i) => {
+    if (i === 0) parts.push(`${leg.fromName} ${fmtTime(leg.enterAt - leg.waitSeconds)}`);
+    const waitTag = leg.waitSeconds > 0 ? `（等待 ${leg.waitSeconds} 秒）` : '';
+    parts.push(`${waitTag}→ ${leg.toName} ${fmtTime(leg.arriveAt)}`);
+  });
+  return parts.join(' ');
+}
+
 /** 将校验结果渲染为 Markdown 报告 */
 function toMarkdown(result) {
   const lines = [];
@@ -40,18 +54,21 @@ function toMarkdown(result) {
       lines.push('');
       continue;
     }
-    lines.push('| # | 起点 | 终点 | 可用时间 | 所需时间 | 结论 | 最短路线 |');
+    lines.push('| # | 起点 | 终点 | 可用时间 | 所需时间 | 结论 | 实际路线（含等待） |');
     lines.push('| --- | --- | --- | --- | --- | --- | --- |');
     for (const seg of actor.segments) {
       const from = `${seg.from.areaName}（${fmtTime(seg.from.time)}）`;
       const to = `${seg.to.areaName}（${fmtTime(seg.to.time)}）`;
       const available = `${seg.availableSeconds} 秒`;
-      const required = seg.requiredSeconds === null ? '—' : `${seg.requiredSeconds} 秒`;
+      let required = '—';
+      if (seg.requiredSeconds !== null) {
+        required = `${seg.requiredSeconds} 秒`;
+        if (seg.waitSeconds > 0) required += `（含等待 ${seg.waitSeconds} 秒）`;
+      }
       let verdict = STATUS_TEXT[seg.status];
       if (seg.status === 'ok') verdict += `（余 ${seg.slackSeconds} 秒）`;
       if (seg.status === 'fail') verdict += `（缺 ${-seg.slackSeconds} 秒）`;
-      const route = seg.path.length > 0 ? seg.path.join(' → ') : '—';
-      lines.push(`| ${seg.index} | ${from} | ${to} | ${available} | ${required} | ${verdict} | ${route} |`);
+      lines.push(`| ${seg.index} | ${from} | ${to} | ${available} | ${required} | ${verdict} | ${routeText(seg)} |`);
     }
     lines.push('');
   }

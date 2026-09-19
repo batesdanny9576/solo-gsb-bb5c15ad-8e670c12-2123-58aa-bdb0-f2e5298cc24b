@@ -7,6 +7,15 @@ const SEED_FILE = path.join(__dirname, '..', 'seed', 'sample-data.json');
 
 let cache = null;
 
+/** 兼容旧数据：连接缺少封闭时段字段时补空数组（视为无封闭） */
+function migrate(data) {
+  if (data && Array.isArray(data.edges)) {
+    for (const e of data.edges) {
+      if (!Array.isArray(e.closures)) e.closures = [];
+    }
+  }
+}
+
 function ensureDataFile() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -21,6 +30,7 @@ function load() {
   if (!cache) {
     ensureDataFile();
     cache = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+    migrate(cache);
   }
   return cache;
 }

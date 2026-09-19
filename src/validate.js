@@ -1,9 +1,11 @@
-const { shortestPath } = require('./graph');
+const { earliestPath } = require('./graph');
 
 /**
  * 走位校验：
  * 对每位演员，将其到位口令按时间升序排列，
- * 计算相邻两条口令之间“图上最短通行耗时”与“可用时间（时间差）”，
+ * 从上一口令时刻出发，按通行耗时逐边推演（时间依赖最短路）：
+ * 进入连接若与封闭时段重叠，可在区域等待或改走其他路径，
+ * 以最早到达时刻计算“所需时间（含等待）”与“可用时间（时间差）”，
  * 所需 > 可用 标记为 fail，图上不可达标记为 unreachable。
  */
 function validate(data) {
@@ -24,20 +26,33 @@ function validate(data) {
       const from = cues[i];
       const to = cues[i + 1];
       const available = to.time - from.time;
-      const sp = shortestPath(data.edges, from.areaId, to.areaId);
+      const ep = earliestPath(data.edges, from.areaId, to.areaId, from.time);
 
       let status;
       let required = null;
       let slack = null;
+      let arrivalTime = null;
+      let waitSeconds = 0;
       let routePath = [];
+      let legs = [];
 
-      if (!sp) {
+      if (!ep) {
         status = 'unreachable';
         unreachable++;
       } else {
-        required = sp.seconds;
+        required = ep.arrival - from.time;
         slack = available - required;
-        routePath = sp.path.map((id) => areaName.get(id) || id);
+        arrivalTime = ep.arrival;
+        waitSeconds = ep.wait;
+        routePath = ep.path.map((id) => areaName.get(id) || id);
+        legs = ep.legs.map((l) => ({
+          edgeId: l.edgeId,
+          fromName: areaName.get(l.from) || l.from,
+          toName: areaName.get(l.to) || l.to,
+          waitSeconds: l.wait,
+          enterAt: l.enterAt,
+          arriveAt: l.arriveAt,
+        }));
         if (required <= available) {
           status = 'ok';
           ok++;
@@ -54,7 +69,10 @@ function validate(data) {
         availableSeconds: available,
         requiredSeconds: required,
         slackSeconds: slack,
+        arrivalTime,
+        waitSeconds,
         path: routePath,
+        legs,
         status,
       });
     }

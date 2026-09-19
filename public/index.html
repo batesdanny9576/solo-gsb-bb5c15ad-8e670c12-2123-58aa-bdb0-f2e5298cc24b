@@ -12,7 +12,7 @@
       <span class="logo">🎭</span>
       <div>
         <h1>舞台走位校验系统</h1>
-        <p class="subtitle">区域连接图 · 到位口令 · 最短通行耗时校验</p>
+        <p class="subtitle">区域连接图 · 通道封闭时段 · 到位口令校验</p>
       </div>
     </div>
     <div class="actions">
@@ -50,19 +50,26 @@
       </section>
 
       <section class="card" id="panel-edges">
-        <h2>区域连接（通行耗时）</h2>
+        <h2>区域连接（通行耗时 / 封闭时段）</h2>
         <form id="form-edge" class="entity-form">
           <input type="hidden" id="edge-id" />
           <select id="edge-a" required></select>
           <select id="edge-b" required></select>
           <input type="number" id="edge-seconds" placeholder="耗时(秒)" min="0" step="1" required />
+          <div class="closures-editor">
+            <div class="closures-head">
+              <span class="closures-title">封闭时段（秒，左闭右开，可选）</span>
+              <button type="button" class="btn btn-small" id="btn-add-closure">+ 添加时段</button>
+            </div>
+            <div id="closures-list"></div>
+          </div>
           <div class="form-buttons">
             <button type="submit" class="btn btn-accent" id="edge-submit">添加连接</button>
             <button type="button" class="btn btn-ghost hidden" id="edge-cancel">取消编辑</button>
           </div>
         </form>
         <table>
-          <thead><tr><th>区域 A</th><th>区域 B</th><th>通行耗时</th><th class="col-ops">操作</th></tr></thead>
+          <thead><tr><th>区域 A</th><th>区域 B</th><th>通行耗时</th><th>封闭时段</th><th class="col-ops">操作</th></tr></thead>
           <tbody id="edges-tbody"></tbody>
         </table>
       </section>
