@@ -16,6 +16,28 @@ function isNonNegativeInt(v) {
   return Number.isInteger(v) && v >= 0;
 }
 
+/** 校验封闭时段数组：[{start, end}]，半开区间 [start, end)，单位秒 */
+function validateClosures(closures) {
+  if (closures === undefined) return null;
+  if (!Array.isArray(closures)) return '封闭时段必须是数组';
+  if (closures.length > 50) return '每条连接的封闭时段最多 50 个';
+  for (const c of closures) {
+    if (!c || !isNonNegativeInt(c.start) || !isNonNegativeInt(c.end)) {
+      return '封闭时段的起止必须是不小于 0 的整数秒';
+    }
+    if (c.start >= c.end) return '封闭时段的开始秒数必须小于结束秒数';
+  }
+  return null;
+}
+
+/** 清洗封闭时段：缺省为空数组，按开始秒数排序 */
+function normalizeClosures(closures) {
+  if (!Array.isArray(closures)) return [];
+  return closures
+    .map((c) => ({ start: c.start, end: c.end }))
+    .sort((x, y) => x.start - y.start || x.end - y.end);
+}
+
 const validators = {
   areas(body) {
     if (!isNonEmptyString(body.name, 30)) return '区域名称必填且不超过 30 字';
@@ -32,7 +54,7 @@ const validators = {
     if (!ids.has(body.a) || !ids.has(body.b)) return '连接两端必须是已存在的区域';
     if (body.a === body.b) return '连接两端不能是同一区域';
     if (!isNonNegativeInt(body.seconds)) return '通行耗时必须是不小于 0 的整数秒';
-    return null;
+    return validateClosures(body.closures);
   },
   cues(body, data) {
     if (!data.actors.some((a) => a.id === body.actorId)) return '必须选择已存在的演员';
@@ -50,7 +72,7 @@ function sanitize(collection, body) {
     case 'actors':
       return { name: body.name.trim(), role: (body.role || '').trim() };
     case 'edges':
-      return { a: body.a, b: body.b, seconds: body.seconds };
+      return { a: body.a, b: body.b, seconds: body.seconds, closures: normalizeClosures(body.closures) };
     case 'cues':
       return { actorId: body.actorId, areaId: body.areaId, time: body.time, note: (body.note || '').trim() };
     default:

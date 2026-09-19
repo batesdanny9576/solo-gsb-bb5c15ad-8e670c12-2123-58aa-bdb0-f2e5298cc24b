@@ -133,6 +133,42 @@ tr.seg-unreachable td { background: var(--warn-bg); }
 .time-detail strong { color: var(--fail); }
 .route { font-size: 12.5px; color: var(--muted); }
 
+/* 逐边时刻明细与等待标注 */
+.leg-detail { display: block; font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.8; }
+.wait-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* 封闭时段编辑器 */
+.closures-editor {
+  flex-basis: 100%;
+  border: 1px dashed var(--card-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.closures-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.closure-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.closure-row input { flex: 1 1 70px; padding: 6px 8px; font-size: 13px; }
+.closure-sep { color: var(--muted); }
+.btn-remove-closure { padding: 2px 9px; font-size: 13px; line-height: 1.4; }
+.closures-hint { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.closures-cell { font-size: 12.5px; color: var(--muted); max-width: 180px; }
+
 /* 表单 */
 .entity-form { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .entity-form input, .entity-form select {

@@ -1,10 +1,11 @@
-const { shortestPath } = require('./graph');
+const { earliestArrival } = require('./graph');
 
 /**
  * 走位校验：
  * 对每位演员，将其到位口令按时间升序排列，
- * 计算相邻两条口令之间“图上最短通行耗时”与“可用时间（时间差）”，
- * 所需 > 可用 标记为 fail，图上不可达标记为 unreachable。
+ * 从上一口令时刻出发，按通行耗时逐边推演至下一口令区域：
+ * 进入连接若与封闭时段重叠，则在区域等待或改走其他路径，
+ * 以最早到达时刻判定 按时 / 超时，图上不连通判定为 不可达。
  */
 function validate(data) {
   const areaName = new Map(data.areas.map((a) => [a.id, a.name]));
@@ -24,20 +25,35 @@ function validate(data) {
       const from = cues[i];
       const to = cues[i + 1];
       const available = to.time - from.time;
-      const sp = shortestPath(data.edges, from.areaId, to.areaId);
+      const ea = earliestArrival(data.edges, from.areaId, to.areaId, from.time);
 
       let status;
       let required = null;
       let slack = null;
+      let arrivalTime = null;
       let routePath = [];
+      let legs = [];
+      let waits = [];
 
-      if (!sp) {
+      if (!ea) {
         status = 'unreachable';
         unreachable++;
       } else {
-        required = sp.seconds;
+        arrivalTime = ea.time;
+        required = ea.time - from.time; // 含途中等待的实际所需秒数
         slack = available - required;
-        routePath = sp.path.map((id) => areaName.get(id) || id);
+        routePath = [from.areaId, ...ea.legs.map((l) => l.toId)].map((id) => areaName.get(id) || id);
+        legs = ea.legs.map((l) => ({
+          fromName: areaName.get(l.fromId) || l.fromId,
+          toName: areaName.get(l.toId) || l.toId,
+          departTime: l.depart,
+          arriveTime: l.arrive,
+          waitSeconds: l.wait,
+          travelSeconds: l.arrive - l.depart,
+        }));
+        waits = legs
+          .filter((l) => l.waitSeconds > 0)
+          .map((l) => ({ areaName: l.fromName, seconds: l.waitSeconds }));
         if (required <= available) {
           status = 'ok';
           ok++;
@@ -54,7 +70,10 @@ function validate(data) {
         availableSeconds: available,
         requiredSeconds: required,
         slackSeconds: slack,
+        arrivalTime,
         path: routePath,
+        legs,
+        waits,
         status,
       });
     }

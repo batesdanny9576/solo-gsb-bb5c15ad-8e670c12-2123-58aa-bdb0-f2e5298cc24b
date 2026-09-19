@@ -11,17 +11,17 @@
     { "id": "area-roof", "name": "天台布景", "description": "独立布景，暂无连接通道" }
   ],
   "edges": [
-    { "id": "edge-wingr-center", "a": "area-wing-r", "b": "area-center", "seconds": 4 },
-    { "id": "edge-wingl-center", "a": "area-wing-l", "b": "area-center", "seconds": 4 },
-    { "id": "edge-center-up", "a": "area-center", "b": "area-upstage", "seconds": 3 },
-    { "id": "edge-center-down", "a": "area-center", "b": "area-downstage", "seconds": 3 },
-    { "id": "edge-up-backstage", "a": "area-upstage", "b": "area-backstage", "seconds": 8 },
-    { "id": "edge-wingr-backstage", "a": "area-wing-r", "b": "area-backstage", "seconds": 10 },
-    { "id": "edge-wingl-backstage", "a": "area-wing-l", "b": "area-backstage", "seconds": 10 },
-    { "id": "edge-wingr-up", "a": "area-wing-r", "b": "area-upstage", "seconds": 6 },
-    { "id": "edge-wingl-up", "a": "area-wing-l", "b": "area-upstage", "seconds": 6 },
-    { "id": "edge-up-balcony", "a": "area-upstage", "b": "area-balcony", "seconds": 12 },
-    { "id": "edge-down-pit", "a": "area-downstage", "b": "area-pit", "seconds": 6 }
+    { "id": "edge-wingr-center", "a": "area-wing-r", "b": "area-center", "seconds": 4, "closures": [ { "start": 10, "end": 14 } ] },
+    { "id": "edge-wingl-center", "a": "area-wing-l", "b": "area-center", "seconds": 4, "closures": [] },
+    { "id": "edge-center-up", "a": "area-center", "b": "area-upstage", "seconds": 3, "closures": [ { "start": 8, "end": 10 }, { "start": 14, "end": 16 } ] },
+    { "id": "edge-center-down", "a": "area-center", "b": "area-downstage", "seconds": 3, "closures": [] },
+    { "id": "edge-up-backstage", "a": "area-upstage", "b": "area-backstage", "seconds": 8, "closures": [] },
+    { "id": "edge-wingr-backstage", "a": "area-wing-r", "b": "area-backstage", "seconds": 10, "closures": [] },
+    { "id": "edge-wingl-backstage", "a": "area-wing-l", "b": "area-backstage", "seconds": 10, "closures": [] },
+    { "id": "edge-wingr-up", "a": "area-wing-r", "b": "area-upstage", "seconds": 6, "closures": [] },
+    { "id": "edge-wingl-up", "a": "area-wing-l", "b": "area-upstage", "seconds": 6, "closures": [] },
+    { "id": "edge-up-balcony", "a": "area-upstage", "b": "area-balcony", "seconds": 12, "closures": [] },
+    { "id": "edge-down-pit", "a": "area-downstage", "b": "area-pit", "seconds": 6, "closures": [] }
   ],
   "actors": [
     { "id": "actor-zhang", "name": "张三", "role": "饰 王子" },

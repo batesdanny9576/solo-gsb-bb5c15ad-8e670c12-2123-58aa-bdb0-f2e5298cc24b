@@ -12,6 +12,16 @@ const STATUS_TEXT = {
   unreachable: '⛔ 区域不可达',
 };
 
+/** 将单个区段的实际路线渲染为带时刻与等待信息的行进链 */
+function renderLegChain(seg) {
+  let chain = `${fmtTime(seg.from.time)}「${seg.from.areaName}」`;
+  for (const leg of seg.legs) {
+    if (leg.waitSeconds > 0) chain += ` ⏱等待 ${leg.waitSeconds} 秒`;
+    chain += ` —${leg.travelSeconds} 秒→ ${fmtTime(leg.arriveTime)}「${leg.toName}」`;
+  }
+  return chain;
+}
+
 /** 将校验结果渲染为 Markdown 报告 */
 function toMarkdown(result) {
   const lines = [];
@@ -40,20 +50,37 @@ function toMarkdown(result) {
       lines.push('');
       continue;
     }
-    lines.push('| # | 起点 | 终点 | 可用时间 | 所需时间 | 结论 | 最短路线 |');
-    lines.push('| --- | --- | --- | --- | --- | --- | --- |');
+    lines.push('| # | 起点 | 终点 | 可用时间 | 所需时间 | 最早到达 | 结论 | 实际路线 |');
+    lines.push('| --- | --- | --- | --- | --- | --- | --- | --- |');
     for (const seg of actor.segments) {
       const from = `${seg.from.areaName}（${fmtTime(seg.from.time)}）`;
       const to = `${seg.to.areaName}（${fmtTime(seg.to.time)}）`;
       const available = `${seg.availableSeconds} 秒`;
       const required = seg.requiredSeconds === null ? '—' : `${seg.requiredSeconds} 秒`;
+      const arrival = seg.arrivalTime === null ? '—' : fmtTime(seg.arrivalTime);
       let verdict = STATUS_TEXT[seg.status];
       if (seg.status === 'ok') verdict += `（余 ${seg.slackSeconds} 秒）`;
       if (seg.status === 'fail') verdict += `（缺 ${-seg.slackSeconds} 秒）`;
       const route = seg.path.length > 0 ? seg.path.join(' → ') : '—';
-      lines.push(`| ${seg.index} | ${from} | ${to} | ${available} | ${required} | ${verdict} | ${route} |`);
+      lines.push(`| ${seg.index} | ${from} | ${to} | ${available} | ${required} | ${arrival} | ${verdict} | ${route} |`);
     }
     lines.push('');
+
+    // 动态路线明细：逐边列出出发 / 到达时刻与等待位置、时长
+    if (actor.segments.some((seg) => seg.legs && seg.legs.length > 0)) {
+      lines.push('**路线明细（含封闭时段等待推演）：**');
+      lines.push('');
+      for (const seg of actor.segments) {
+        if (seg.status === 'unreachable') {
+          lines.push(`- 区段 ${seg.index}：⛔ 两区域在连接图上不连通，无可用路线`);
+        } else if (!seg.legs || seg.legs.length === 0) {
+          lines.push(`- 区段 ${seg.index}：起点即终点（${seg.from.areaName}），无需移动`);
+        } else {
+          lines.push(`- 区段 ${seg.index}：${renderLegChain(seg)}；最早到达 ${fmtTime(seg.arrivalTime)}`);
+        }
+      }
+      lines.push('');
+    }
   }
 
   return lines.join('\n');
